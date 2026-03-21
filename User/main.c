@@ -1,0 +1,179 @@
+/**
+ * @file main.c
+ * @brief 心电信号采集主程序
+ * 
+ * 功能: 500Hz采样AD8232输出,通过串口发送滤波后数据及心率信息
+ * 
+ * 硬件连接:
+ * - PA5: AD8232 OUTPUT (ADC输入)
+ * - PA9: USART1 TX (USB转TTL RX)
+ * - PA10: USART1 RX (USB转TTL TX)
+ */
+
+#include "stm32f10x.h"
+#include "system.h"
+#include "uart.h"
+#include "adc.h"
+#include "timer.h"
+#include "ecg_filter.h"
+#include "ecg_detector.h"
+#include "ecg_hr.h"
+#include "oled.h"
+#include "key.h"
+
+/* 全局变量 */
+static volatile uint8_t g_sample_flag = 0;
+volatile uint8_t g_peak_flag = 0; // 新增：R波检测标志
+ecg_filter_t g_filter; 
+ecg_detector_t g_detector;
+ecg_hr_t g_hr;
+static uint32_t g_refresh_counter = 0;
+
+/**
+ * @brief 采样回调函数
+ * @note 在TIM2中断中调用 (500Hz)
+ */
+static void sample_callback(void) {
+    g_sample_flag = 1;
+}
+
+/**
+ * @brief 发送启动信息
+ */
+static void send_startup_info(void) {
+    uart_send_string("\r\n");
+    uart_send_string("================================\r\n");
+    uart_send_string("  ECG Data Acquisition System   \r\n");
+    uart_send_string("================================\r\n");
+    uart_send_string("Sample Rate: 500Hz\r\n");
+    uart_send_string("ADC Channel: PA5 (AD8232)\r\n");
+    uart_send_string("Filter: HP(0.5Hz)->LP(40Hz)->Notch(50Hz)\r\n");
+    uart_send_string("Detector: Pan-Tompkins Algorithm\r\n");
+    uart_send_string("UART: 115200 baud\r\n");
+    uart_send_string("Data Format: ECG(mV),[HR Info]\r\n");
+    uart_send_string("================================\r\n\r\n");
+}
+
+/**
+ * @brief 发送心率信息
+ */
+static void send_hr_info(const hr_result_t* hr) {
+    uart_send_string("[HR] ");
+    uart_send_string("Instant:");
+    uart_send_number(hr->instant);
+    uart_send_string(" Avg:");
+    uart_send_number(hr->average);
+    uart_send_string(" Min:");
+    uart_send_number(hr->min_hr);
+    uart_send_string(" Max:");
+    uart_send_number(hr->max_hr);
+    uart_send_string(" Status:");
+    uart_send_string(ecg_hr_status_string(hr->status));
+    uart_send_string("\r\n");
+}
+
+/**
+ * @brief 主函数
+ */
+int main(void) {
+    /* 系统初始化 */
+    sys_init();
+    
+    /* 外设初始化 */
+    uart_init();
+    adc_init();
+    timer_init();
+    OLED_Init();
+    Key_Init();
+    
+    /* 初始化信号处理模块 */
+    ecg_filter_init(&g_filter);
+    ecg_detector_init(&g_detector);
+    ecg_hr_init(&g_hr);
+    
+    /* 设置采样回调 */
+    timer_set_callback(sample_callback);
+    
+    /* OLED 初始显示 */
+    OLED_Clear();
+    OLED_Refresh();
+    
+    /* 发送启动信息 */
+    send_startup_info();
+    
+    /* 启动定时器 */
+    timer_start();
+    
+    /* 主循环 */
+    while (1) {
+        /* 检查是否有新的心率数据需要通过串口发送 */
+        if (g_peak_flag) {
+            g_peak_flag = 0;
+            const hr_result_t* hr = ecg_hr_get_result(&g_hr);
+            send_hr_info(hr);
+        }
+        
+        /* 处理按键 */
+        uint8_t key = Key_GetNum();
+        if (key == 1) {
+            // 按键 1: 切换显示模式
+            g_display_mode = (OLED_DisplayMode_t)((g_display_mode + 1) % OLED_MODE_MAX);
+            OLED_Clear();
+            OLED_ResetWaveform(); // 切换模式时重置波形
+            OLED_Refresh();
+        } else if (key == 2) {
+            // 按键 2: 重置心率统计
+            ecg_hr_init(&g_hr);
+            OLED_Clear();
+            OLED_ResetWaveform(); // 重置绘制
+            OLED_ShowString(2, 1, "HR Reset");
+            OLED_Refresh();
+            sys_delay_ms(500);
+            OLED_Clear();
+            OLED_Refresh();
+        }
+        
+        /* 定期刷新显示 (20Hz) */
+        if (++g_refresh_counter >= 25) {
+            g_refresh_counter = 0;
+            const hr_result_t* hr = ecg_hr_get_result(&g_hr);
+            
+            if (g_display_mode == OLED_MODE_FULL_WAVE) {
+                if (hr->status == HR_NO_SIGNAL) {
+                    OLED_Clear();
+                    OLED_ResetWaveform();
+                    OLED_ShowString(2, 5, "NO SIG");
+                    OLED_ShowString(3, 2, "Check Electrode");
+                    OLED_Refresh();
+                } else {
+                    OLED_Refresh();
+                }
+            } 
+            else if (g_display_mode == OLED_MODE_WAVE_HR) {
+                // 波形 + 右上角实时心率 + 状态
+                OLED_ShowString(1, 1, "HR:");
+                if (hr->status == HR_NO_SIGNAL) {
+                    OLED_ShowString(1, 4, "---");
+                } else {
+                    OLED_ShowNum(1, 4, hr->average, 3);
+                }
+                OLED_ShowString(1, 8, ecg_hr_status_string(hr->status));
+                OLED_Refresh();
+            }
+            else if (g_display_mode == OLED_MODE_LARGE_HR) {
+                // 大字心率显示模式
+                OLED_ShowString(2, 4, "Heart Rate");
+                if (hr->status == HR_NO_SIGNAL) {
+                    OLED_ShowString(3, 6, "---");
+                } else {
+                    OLED_ShowNum(3, 6, hr->average, 3);
+                }
+                OLED_ShowString(3, 10, "bpm");
+                OLED_ShowString(4, 5, ecg_hr_status_string(hr->status));
+                OLED_Refresh();
+            }
+        }
+        
+        sys_delay_ms(10); 
+    }
+}
