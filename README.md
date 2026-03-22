@@ -27,7 +27,7 @@
 ## 4. 软件环境
 
 *   **开发工具**：Keil MDK (ARM Microcontroller Development Kit)
-*   **微控制器**：STM32F103C8T6 (或其他 STM32F1 系列芯片)
+*   **微控制器**：STM32F103C8T6 
 *   **编程语言**：C 语言
 
 ## 5. 文件结构
@@ -46,12 +46,12 @@ my-stm32-project/
 │   ├── ecg_detector.c/.h   # R 波检测算法
 │   ├── ecg_filter.c/.h     # 心电滤波算法
 │   ├── ecg_hr.c/.h         # 心率计算
-│   ├── key.c/.h            # 按键驱动 (如果存在)
+│   ├── key.c/.h            # 按键驱动
 │   ├── oled.c/.h           # SSD1306 OLED 驱动
 │   ├── oled_wave.c/.h      # OLED 波形绘制逻辑
-│   ├── oledfont.c/.h       # OLED 字体库 (如果存在)
+│   ├── oledfont.c/.h       # OLED 字体库
 │   ├── system.c/.h         # 系统时钟与延时函数
-│   ├── timer.c/.h          # 定时器驱动 (用于采样中断)
+│   ├── timer.c/.h          # 定时器驱动(用于采样中断)
 │   └── uart.c/.h           # 串口通信驱动
 ├── Project.uvoptx          # Keil 工程选项文件
 ├── Project.uvprojx         # Keil 工程文件
@@ -82,4 +82,4 @@ my-stm32-project/
 
 ## 8. 许可证
 
-本项目采用 MIT 许可证。详情请参阅 `LICENSE` 文件 (如果存在)。
+本项目采用 MIT 许可证。详情请参阅 `LICENSE` 文件。
