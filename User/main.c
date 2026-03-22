@@ -22,20 +22,11 @@
 #include "key.h"
 
 /* 全局变量 */
-static volatile uint8_t g_sample_flag = 0;
 volatile uint8_t g_peak_flag = 0; // 新增：R波检测标志
 ecg_filter_t g_filter; 
 ecg_detector_t g_detector;
 ecg_hr_t g_hr;
 static uint32_t g_refresh_counter = 0;
-
-/**
- * @brief 采样回调函数
- * @note 在TIM2中断中调用 (500Hz)
- */
-static void sample_callback(void) {
-    g_sample_flag = 1;
-}
 
 /**
  * @brief 发送启动信息
@@ -91,9 +82,6 @@ int main(void) {
     ecg_detector_init(&g_detector);
     ecg_hr_init(&g_hr);
     
-    /* 设置采样回调 */
-    timer_set_callback(sample_callback);
-    
     /* OLED 初始显示 */
     OLED_Clear();
     OLED_Refresh();
@@ -109,8 +97,9 @@ int main(void) {
         /* 检查是否有新的心率数据需要通过串口发送 */
         if (g_peak_flag) {
             g_peak_flag = 0;
-            const hr_result_t* hr = ecg_hr_get_result(&g_hr);
-            send_hr_info(hr);
+            hr_result_t hr;
+            ecg_hr_get_result_snapshot(&g_hr, &hr);
+            send_hr_info(&hr);
         }
         
         /* 处理按键 */
@@ -136,10 +125,11 @@ int main(void) {
         /* 定期刷新显示 (20Hz) */
         if (++g_refresh_counter >= 25) {
             g_refresh_counter = 0;
-            const hr_result_t* hr = ecg_hr_get_result(&g_hr);
+            hr_result_t hr;
+            ecg_hr_get_result_snapshot(&g_hr, &hr);
             
             if (g_display_mode == OLED_MODE_FULL_WAVE) {
-                if (hr->status == HR_NO_SIGNAL) {
+                if (hr.status == HR_NO_SIGNAL) {
                     OLED_Clear();
                     OLED_ResetWaveform();
                     OLED_ShowString(2, 5, "NO SIG");
@@ -152,24 +142,24 @@ int main(void) {
             else if (g_display_mode == OLED_MODE_WAVE_HR) {
                 // 波形 + 右上角实时心率 + 状态
                 OLED_ShowString(1, 1, "HR:");
-                if (hr->status == HR_NO_SIGNAL) {
+                if (hr.status == HR_NO_SIGNAL) {
                     OLED_ShowString(1, 4, "---");
                 } else {
-                    OLED_ShowNum(1, 4, hr->average, 3);
+                    OLED_ShowNum(1, 4, hr.average, 3);
                 }
-                OLED_ShowString(1, 8, ecg_hr_status_string(hr->status));
+                OLED_ShowString(1, 8, ecg_hr_status_string(hr.status));
                 OLED_Refresh();
             }
             else if (g_display_mode == OLED_MODE_LARGE_HR) {
                 // 大字心率显示模式
                 OLED_ShowString(2, 4, "Heart Rate");
-                if (hr->status == HR_NO_SIGNAL) {
+                if (hr.status == HR_NO_SIGNAL) {
                     OLED_ShowString(3, 6, "---");
                 } else {
-                    OLED_ShowNum(3, 6, hr->average, 3);
+                    OLED_ShowNum(3, 6, hr.average, 3);
                 }
                 OLED_ShowString(3, 10, "bpm");
-                OLED_ShowString(4, 5, ecg_hr_status_string(hr->status));
+                OLED_ShowString(4, 5, ecg_hr_status_string(hr.status));
                 OLED_Refresh();
             }
         }

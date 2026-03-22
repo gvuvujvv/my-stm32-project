@@ -52,6 +52,7 @@ uint8_t ecg_hr_add_peak(ecg_hr_t *hr, const r_peak_info_t *peak);
 
 /* 获取结果 */
 const hr_result_t* ecg_hr_get_result(ecg_hr_t *hr);
+void ecg_hr_get_result_snapshot(ecg_hr_t *hr, hr_result_t *out);
 
 /* 获取状态字符串 */
 const char* ecg_hr_status_string(hr_status_t status);

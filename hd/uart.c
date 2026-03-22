@@ -130,6 +130,10 @@ void uart_send_float(float value) {
     /* 分离整数和小数部分 (保留3位小数) */
     integer_part = (int32_t)abs_val;
     decimal_part = (int32_t)((abs_val - integer_part) * 1000 + 0.5f);
+    if (decimal_part >= 1000) {
+        integer_part += 1;
+        decimal_part -= 1000;
+    }
     
     /* 格式化输出 */
     snprintf(p, sizeof(buf) - (p - buf), "%ld.%03ld\r\n", integer_part, decimal_part);

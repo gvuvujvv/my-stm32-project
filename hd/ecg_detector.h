@@ -12,7 +12,9 @@
 #include <stdbool.h>
 
 /* 参数 */
+#ifndef SAMPLE_RATE
 #define SAMPLE_RATE         500
+#endif
 #define INTEGRAL_WINDOW     75      /* 150ms @500Hz */
 #define MIN_RR_INTERVAL     150     /* 300ms @500Hz */
 #define SEARCH_WINDOW       40      /* 80ms @500Hz */

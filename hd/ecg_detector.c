@@ -65,10 +65,6 @@ bool ecg_detector_process(ecg_detector_t *det, float sample) {
         bool interval_ok = ((int32_t)det->sample_count - 1 - det->last_r_pos) >= MIN_RR_INTERVAL;
         
         if (is_peak && det->prev_val > det->threshold && interval_ok) {
-            /* 在原始信号中精确定位 */
-            int32_t search_start = (int32_t)det->sample_count - 1 - SEARCH_WINDOW;
-            if (search_start < 0) search_start = 0;
-            
             /* 存储R波 (循环使用缓存，仅保留最新 R 波) */
             uint16_t idx = det->peak_count % MAX_R_PEAKS;
             det->peaks[idx].position = det->sample_count - 1;

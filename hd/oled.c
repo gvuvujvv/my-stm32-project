@@ -83,7 +83,6 @@ void OLED_I2C_Stop(void) {
  */
 void OLED_I2C_SendByte(uint8_t Byte) {
     uint8_t i;
-    __disable_irq(); // Protect timing from 500Hz IRQ
     for (i = 0; i < 8; i++) {
         OLED_W_SDA(Byte & (0x80 >> i));
         OLED_I2C_Delay();
@@ -99,7 +98,6 @@ void OLED_I2C_SendByte(uint8_t Byte) {
     OLED_I2C_Delay();
     OLED_W_SCL(0);
     OLED_I2C_Delay();
-    __enable_irq();
 }
 
 /**
@@ -244,6 +242,8 @@ void OLED_Init(void) {
  */
 void OLED_ShowChar(uint8_t Line, uint8_t Column, char Char) {
     uint8_t i;
+    if (Line < 1 || Line > 4 || Column < 1 || Column > 16) return;
+    if (Char < ' ' || Char > '~') Char = ' ';
     uint8_t Page = (Line - 1) * 2;
     uint8_t Col = (Column - 1) * 8;
     for (i = 0; i < 8; i++) {
@@ -257,7 +257,8 @@ void OLED_ShowChar(uint8_t Line, uint8_t Column, char Char) {
  */
 void OLED_ShowString(uint8_t Line, uint8_t Column, const char *String) {
     uint8_t i;
-    for (i = 0; String[i] != '\0'; i++) {
+    if (Line < 1 || Line > 4 || Column < 1 || Column > 16) return;
+    for (i = 0; String[i] != '\0' && (Column + i) <= 16; i++) {
         OLED_ShowChar(Line, Column + i, String[i]);
     }
 }
@@ -267,6 +268,8 @@ void OLED_ShowString(uint8_t Line, uint8_t Column, const char *String) {
  */
 void OLED_ShowChar6x8(uint8_t Line, uint8_t Column, char Char) {
     uint8_t i;
+    if (Line < 1 || Line > 8 || Column < 1 || Column > 16) return;
+    if (Char < ' ' || Char > '~') Char = ' ';
     uint8_t Page = (Line - 1);
     uint8_t Col = (Column - 1) * 8;
     for (i = 0; i < 6; i++) {
@@ -279,7 +282,8 @@ void OLED_ShowChar6x8(uint8_t Line, uint8_t Column, char Char) {
  */
 void OLED_ShowString6x8(uint8_t Line, uint8_t Column, const char *String) {
     uint8_t i;
-    for (i = 0; String[i] != '\0'; i++) {
+    if (Line < 1 || Line > 8 || Column < 1 || Column > 16) return;
+    for (i = 0; String[i] != '\0' && (Column + i) <= 16; i++) {
         OLED_ShowChar6x8(Line, Column + i, String[i]);
     }
 }
@@ -289,7 +293,8 @@ void OLED_ShowString6x8(uint8_t Line, uint8_t Column, const char *String) {
  */
 void OLED_ShowNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length) {
     char buf[12];
-    sprintf(buf, "%0*lu", Length, Number);
+    if (Length > 10) Length = 10;
+    snprintf(buf, sizeof(buf), "%0*lu", Length, (unsigned long)Number);
     OLED_ShowString(Line, Column, buf);
 }
 
@@ -298,7 +303,8 @@ void OLED_ShowNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length)
  */
 void OLED_ShowSignedNum(uint8_t Line, uint8_t Column, int32_t Number, uint8_t Length) {
     char buf[12];
-    sprintf(buf, "%+0*ld", Length, Number);
+    if (Length > 10) Length = 10;
+    snprintf(buf, sizeof(buf), "%+0*ld", Length, (long)Number);
     OLED_ShowString(Line, Column, buf);
 }
 
@@ -306,8 +312,32 @@ void OLED_ShowSignedNum(uint8_t Line, uint8_t Column, int32_t Number, uint8_t Le
  * @brief Display a float number
  */
 void OLED_ShowFNum(uint8_t Line, uint8_t Column, float Number, uint8_t Length, uint8_t FLength) {
-    char buf[20];
-    sprintf(buf, "%0*.*f", Length, FLength, Number);
+    char buf[24];
+    uint8_t neg = 0;
+    float abs_val = Number;
+    if (Number < 0.0f) {
+        neg = 1;
+        abs_val = -Number;
+    }
+    int32_t integer_part = (int32_t)abs_val;
+    float frac = abs_val - (float)integer_part;
+    uint32_t scale = 1;
+    uint8_t i;
+    if (FLength > 6) FLength = 6;
+    for (i = 0; i < FLength; i++) scale *= 10;
+    uint32_t decimal_part = (uint32_t)(frac * (float)scale + 0.5f);
+    if (decimal_part >= scale) {
+        integer_part++;
+        decimal_part -= scale;
+    }
+    if (Length > 10) Length = 10;
+    if (FLength == 0) {
+        if (neg) snprintf(buf, sizeof(buf), "-%0*ld", Length, (long)integer_part);
+        else snprintf(buf, sizeof(buf), "%0*ld", Length, (long)integer_part);
+    } else {
+        if (neg) snprintf(buf, sizeof(buf), "-%0*ld.%0*lu", Length, (long)integer_part, FLength, (unsigned long)decimal_part);
+        else snprintf(buf, sizeof(buf), "%0*ld.%0*lu", Length, (long)integer_part, FLength, (unsigned long)decimal_part);
+    }
     OLED_ShowString(Line, Column, buf);
 }
 
@@ -316,6 +346,7 @@ void OLED_ShowFNum(uint8_t Line, uint8_t Column, float Number, uint8_t Length, u
  */
 void OLED_ShowCC_F16x16(uint8_t Line, uint8_t Column, uint8_t num) {
     uint8_t i;
+    if (Line < 1 || Line > 4 || Column < 1 || Column > 8) return;
     uint8_t Page = (Line - 1) * 2;
     uint8_t Col = (Column - 1) * 16;
     for (i = 0; i < 16; i++) {

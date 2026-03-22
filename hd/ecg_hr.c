@@ -96,6 +96,12 @@ const hr_result_t* ecg_hr_get_result(ecg_hr_t *hr) {
     return &hr->result;
 }
 
+void ecg_hr_get_result_snapshot(ecg_hr_t *hr, hr_result_t *out) {
+    __disable_irq();
+    *out = hr->result;
+    __enable_irq();
+}
+
 /**
  * @brief 获取状态字符串
  */
