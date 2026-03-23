@@ -33,6 +33,9 @@ void timer_set_callback(timer_callback_t cb);
 /* 获取系统运行时间 (ms) */
 uint32_t timer_get_ms(void);
 
+extern volatile uint16_t g_ble_ecg_sample;
+extern volatile uint8_t g_data_ready;
+
 // 新增：供 IRQ 调用
 void timer_process_sampling(void);
 

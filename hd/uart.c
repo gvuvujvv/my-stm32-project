@@ -81,6 +81,19 @@ void uart_send_bytes(const uint8_t *data, uint16_t len) {
     }
 }
 
+void UART_SendBLEPacket(uint16_t data) {
+    uint8_t pkt[5];
+    uint16_t v = (uint16_t)(data & 0x0FFF);
+
+    pkt[0] = 0xAA;
+    pkt[1] = 0x01;
+    pkt[2] = (uint8_t)((v >> 8) & 0x0F);
+    pkt[3] = (uint8_t)(v & 0xFF);
+    pkt[4] = (uint8_t)(pkt[0] ^ pkt[1] ^ pkt[2] ^ pkt[3]);
+
+    uart_send_bytes(pkt, 5);
+}
+
 /**
  * @brief 发送数字 (带换行，int32_t)
  */

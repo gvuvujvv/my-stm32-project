@@ -28,6 +28,8 @@ void uart_send_byte(uint8_t data);
 void uart_send_string(const char *str);
 void uart_send_bytes(const uint8_t *data, uint16_t len);
 
+void UART_SendBLEPacket(uint16_t data);
+
 /* 发送数字 (带换行) */
 void uart_send_number(int32_t num);
 

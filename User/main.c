@@ -94,6 +94,36 @@ int main(void) {
     
     /* 主循环 */
     while (1) {
+        /* BLE 二进制透传发送：主循环中发送，避免阻塞 500Hz 采样中断
+         *
+         * 当前发送的是“滤波后信号”的 12bit 定点映射值（不是原始 ADC）：
+         * - 单片机端：ecg12 = 2048 + round((filtered-baseline)*1024)，并裁剪到 0..4095
+         * - 小程序端：signed = ecg12 - 2048；normalized(V) ≈ signed / 1024
+         *
+         * 微信小程序端解析示例（ArrayBuffer -> 12位 ecg12）：
+         * wx.onBLECharacteristicValueChange(res => {
+         *   const u8 = new Uint8Array(res.value)
+         *   for (let i = 0; i + 4 < u8.length; i += 5) {
+         *     if (u8[i] !== 0xAA) continue
+         *     const type = u8[i + 1]
+         *     const dataH = u8[i + 2] & 0x0F
+         *     const dataL = u8[i + 3]
+         *     const cs = u8[i + 4]
+         *     const calc = (u8[i] ^ u8[i + 1] ^ u8[i + 2] ^ u8[i + 3]) & 0xFF
+         *     if (cs !== calc) continue
+         *     if (type !== 0x01) continue
+         *     const ecg12 = (dataH << 8) | dataL
+         *     const signed = ecg12 - 2048
+         *     const v = signed / 1024.0
+         *   }
+         * })
+         */
+        if (g_data_ready) {
+            uint16_t sample = g_ble_ecg_sample;
+            g_data_ready = 0;
+            UART_SendBLEPacket(sample);
+        }
+
         /* 检查是否有新的心率数据需要通过串口发送 */
         if (g_peak_flag) {
             g_peak_flag = 0;

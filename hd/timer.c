@@ -15,6 +15,9 @@
 static volatile uint32_t g_sys_ms = 0;
 static timer_callback_t g_timer_cb = NULL;
 
+volatile uint16_t g_ble_ecg_sample = 0;
+volatile uint8_t g_data_ready = 0;
+
 // 引用主程序的滤波器
 extern ecg_filter_t g_filter;
 
@@ -90,6 +93,8 @@ void timer_process_sampling(void) {
     static uint32_t last_hr_update_ms = 0;
     static uint32_t prev_last_rr = 0;
     static uint16_t rail_cnt = 0;
+    static float ble_baseline = 0.0f;
+    static uint16_t ble_settle = 0;
 
     /* 1. 读取ADC原始值 */
     uint16_t adc_val = adc_read();
@@ -99,9 +104,38 @@ void timer_process_sampling(void) {
     
     /* 3. 滤波处理 (唯一的处理点，避免重入) */
     float filtered = ecg_filter_process(&g_filter, voltage);
+
+    /* BLE 发送数据选择：发送“滤波后信号”的定点映射（方案B）
+     * 目的：小程序端无需再做复杂滤波，直接绘图就更像 OLED 上的心电波形。
+     *
+     * 编码方式：
+     * - 对滤波信号做慢速基线跟踪，得到近似零均值的 normalized = filtered - baseline
+     * - 映射为 12bit 无符号：ecg12 = 2048 + round(normalized * BLE_SCALE)
+     * - 结果裁剪到 0..4095
+     *
+     * 小程序端解码：
+     * - signed = ecg12 - 2048
+     * - normalized(V) ≈ signed / BLE_SCALE
+     */
+#define BLE_ECG_OFFSET   2048
+#define BLE_ECG_SCALE    1024.0f
+    if (ble_settle < 500) {
+        ble_baseline = filtered;
+        ble_settle++;
+        g_ble_ecg_sample = BLE_ECG_OFFSET;
+    } else {
+        ble_baseline = 0.995f * ble_baseline + 0.005f * filtered;
+        float norm = filtered - ble_baseline;
+        float qf = norm * BLE_ECG_SCALE;
+        int32_t q = (int32_t)(qf + (qf >= 0.0f ? 0.5f : -0.5f));
+        int32_t enc = (int32_t)BLE_ECG_OFFSET + q;
+        if (enc < 0) enc = 0;
+        if (enc > 4095) enc = 4095;
+        g_ble_ecg_sample = (uint16_t)enc;
+    }
+    g_data_ready = 1;
     
-    /* 4. 立即发送到串口 */
-    uart_send_float(filtered * 1000.0f);
+    /* 4. 串口发送移至主循环，避免阻塞采样中断 */
     
     /* 5. R波检测与心率更新 */
     static uint8_t peak_blink = 0;
