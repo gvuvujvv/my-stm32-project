@@ -94,6 +94,10 @@ void UART_SendBLEPacket(uint16_t data) {
     uart_send_bytes(pkt, 5);
 }
 
+void uart_send_ble_packet(uint16_t data) {
+    UART_SendBLEPacket(data);
+}
+
 /**
  * @brief 发送数字 (带换行，int32_t)
  */

@@ -121,7 +121,7 @@ int main(void) {
         if (g_data_ready) {
             uint16_t sample = g_ble_ecg_sample;
             g_data_ready = 0;
-            UART_SendBLEPacket(sample);
+            uart_send_ble_packet(sample);
         }
 
         /* 检查是否有新的心率数据需要通过串口发送 */
