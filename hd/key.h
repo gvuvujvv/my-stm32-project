@@ -3,11 +3,13 @@
 
 #include "stm32f10x.h"
 
-/*
- * 新版硬件按键连接:
+/**
+ * @brief 按键硬件定义（对应新版原理图 v3.0）
+ *
  * SW2 -> PB4
  * SW3 -> PB5
- * 按下为低电平
+ *
+ * 按键采用上拉输入，按下为低电平。
  */
 #define KEY1_PIN  GPIO_Pin_4
 #define KEY2_PIN  GPIO_Pin_5
