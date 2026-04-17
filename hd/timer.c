@@ -29,8 +29,13 @@ extern ecg_detector_t g_detector;
 extern ecg_hr_t g_hr;
 extern volatile uint8_t g_peak_flag;
 
+/*
+ * 新版原理图(v3.0): PB13 通过 S8550(PNP) 驱动蜂鸣器，低电平有效。
+ * on = 1 -> 蜂鸣器响 -> PB13 输出低电平
+ * on = 0 -> 蜂鸣器关 -> PB13 输出高电平
+ */
 static void buzzer_write(uint8_t on) {
-    GPIO_WriteBit(GPIOB, GPIO_Pin_13, on ? Bit_SET : Bit_RESET);
+    GPIO_WriteBit(GPIOB, GPIO_Pin_13, on ? Bit_RESET : Bit_SET);
 }
 
 static void buzzer_update(uint8_t alarm_mode) {
