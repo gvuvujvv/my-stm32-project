@@ -2,10 +2,14 @@
 #include "system.h"
 
 void Key_Init(void) {
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    /* 新版按键在 GPIOB */
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+
+    /* 关闭 JTAG，保留 SWD，释放 PB4 */
+    GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
     
     GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU; // Pull-up for buttons
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU; // 上拉输入
     GPIO_InitStructure.GPIO_Pin = KEY1_PIN | KEY2_PIN;
     GPIO_Init(KEY_PORT, &GPIO_InitStructure);
 }
