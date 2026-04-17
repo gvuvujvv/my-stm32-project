@@ -3,9 +3,15 @@
 
 #include "stm32f10x.h"
 
-#define KEY1_PIN  GPIO_Pin_11
-#define KEY2_PIN  GPIO_Pin_12
-#define KEY_PORT  GPIOA
+/*
+ * 新版硬件按键连接:
+ * SW2 -> PB4
+ * SW3 -> PB5
+ * 按下为低电平
+ */
+#define KEY1_PIN  GPIO_Pin_4
+#define KEY2_PIN  GPIO_Pin_5
+#define KEY_PORT  GPIOB
 
 void Key_Init(void);
 uint8_t Key_GetNum(void);
