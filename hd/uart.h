@@ -11,6 +11,7 @@
 
 #include "stm32f10x.h"
 #include <stdint.h>
+#include "ecg_hr.h"
 
 /* 波特率 */
 #ifndef UART_BAUDRATE
@@ -30,6 +31,7 @@ void uart_send_bytes(const uint8_t *data, uint16_t len);
 
 void UART_SendBLEPacket(uint16_t data);
 void uart_send_ble_packet(uint16_t data);
+void uart_send_hrv_packet(const hr_result_t *hr);
 
 /* 发送数字 (带换行) */
 void uart_send_number(int32_t num);

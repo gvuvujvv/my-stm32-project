@@ -98,6 +98,41 @@ void uart_send_ble_packet(uint16_t data) {
     UART_SendBLEPacket(data);
 }
 
+static uint8_t clamp_u8(uint16_t value) {
+    return value > 255 ? 255 : (uint8_t)value;
+}
+
+void uart_send_hrv_packet(const hr_result_t *hr) {
+    uint8_t pkt[9];
+    uint8_t status;
+    uint8_t i;
+    uint8_t checksum = 0;
+
+    if (hr->status == HR_NO_SIGNAL) {
+        status = 3;
+    } else if (!hr->hrv_ready) {
+        status = 4;
+    } else {
+        status = (uint8_t)hr->status;
+    }
+
+    pkt[0] = 0xAA;
+    pkt[1] = 0x02;
+    pkt[2] = clamp_u8(hr->average);
+    pkt[3] = clamp_u8(hr->sdnn);
+    pkt[4] = clamp_u8(hr->rmssd);
+    pkt[5] = hr->pnn50 > 100 ? 100 : hr->pnn50;
+    pkt[6] = hr->hrv_count;
+    pkt[7] = status;
+
+    for (i = 0; i < 8; i++) {
+        checksum ^= pkt[i];
+    }
+    pkt[8] = checksum;
+
+    uart_send_bytes(pkt, 9);
+}
+
 /**
  * @brief 发送数字 (带换行，int32_t)
  */

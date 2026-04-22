@@ -171,11 +171,12 @@ int main(void) {
             uart_send_ble_packet(sample);
         }
 
-        /* 检查是否有新的心率数据需要通过串口发送 */
+        /* 检查是否有新的心率/HRV数据需要通过串口发送 */
         if (g_peak_flag) {
             g_peak_flag = 0;
             hr_result_t hr;
             ecg_hr_get_result_snapshot(&g_hr, &hr);
+            uart_send_hrv_packet(&hr);
             send_hr_info(&hr);
         }
         
