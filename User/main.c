@@ -40,6 +40,7 @@ static void send_startup_info(void) {
     uart_send_string("ADC Channel: PA5 (AD8232)\r\n");
     uart_send_string("Filter: HP(0.5Hz)->LP(40Hz)->Notch(50Hz)\r\n");
     uart_send_string("Detector: Pan-Tompkins Algorithm\r\n");
+    uart_send_string("HRV: SDNN/RMSSD/pNN50 (time-domain)\r\n");
     uart_send_string("UART: 115200 baud\r\n");
     uart_send_string("Data Format: ECG(mV),[HR Info]\r\n");
     uart_send_string("================================\r\n\r\n");
@@ -60,7 +61,53 @@ static void send_hr_info(const hr_result_t* hr) {
     uart_send_number(hr->max_hr);
     uart_send_string(" Status:");
     uart_send_string(ecg_hr_status_string(hr->status));
+    uart_send_string(" HRV:");
+    if (hr->hrv_ready) {
+        uart_send_string("SDNN=");
+        uart_send_number(hr->sdnn);
+        uart_send_string(" RMSSD=");
+        uart_send_number(hr->rmssd);
+        uart_send_string(" pNN50=");
+        uart_send_number(hr->pnn50);
+        uart_send_string("% n=");
+        uart_send_number(hr->hrv_count);
+    } else {
+        uart_send_string("WAIT n=");
+        uart_send_number(hr->hrv_count);
+    }
     uart_send_string("\r\n");
+}
+
+static void show_hrv_page(const hr_result_t* hr) {
+    OLED_Clear();
+
+    if (hr->status == HR_NO_SIGNAL) {
+        OLED_ShowString(2, 5, "NO SIG");
+        OLED_ShowString(3, 2, "Check Electrode");
+        OLED_Refresh();
+        return;
+    }
+
+    if (!hr->hrv_ready) {
+        OLED_ShowString(1, 5, "HRV WAIT");
+        OLED_ShowString(2, 5, "n=");
+        OLED_ShowNum(2, 7, hr->hrv_count, 2);
+        OLED_ShowString(3, 2, "Need more RR");
+        OLED_Refresh();
+        return;
+    }
+
+    OLED_ShowString(1, 1, "HRV n=");
+    OLED_ShowNum(1, 7, hr->hrv_count, 2);
+    OLED_ShowString(2, 1, "SDNN:");
+    OLED_ShowNum(2, 6, hr->sdnn, 3);
+    OLED_ShowString(2, 9, "ms");
+    OLED_ShowString(3, 1, "RMSSD:");
+    OLED_ShowNum(3, 7, hr->rmssd, 3);
+    OLED_ShowString(4, 1, "pNN50:");
+    OLED_ShowNum(4, 7, hr->pnn50, 2);
+    OLED_ShowString(4, 9, "%");
+    OLED_Refresh();
 }
 
 /**
@@ -124,11 +171,12 @@ int main(void) {
             uart_send_ble_packet(sample);
         }
 
-        /* 检查是否有新的心率数据需要通过串口发送 */
+        /* 检查是否有新的心率/HRV数据需要通过串口发送 */
         if (g_peak_flag) {
             g_peak_flag = 0;
             hr_result_t hr;
             ecg_hr_get_result_snapshot(&g_hr, &hr);
+            uart_send_hrv_packet(&hr);
             send_hr_info(&hr);
         }
         
@@ -191,6 +239,9 @@ int main(void) {
                 OLED_ShowString(3, 10, "bpm");
                 OLED_ShowString(4, 5, ecg_hr_status_string(hr.status));
                 OLED_Refresh();
+            }
+            else if (g_display_mode == OLED_MODE_HRV) {
+                show_hrv_page(&hr);
             }
         }
         
