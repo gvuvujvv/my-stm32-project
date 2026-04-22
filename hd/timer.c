@@ -197,7 +197,9 @@ void timer_process_sampling(void) {
     /* 6. 更新 OLED 显存 (降采样以匹配 128 像素宽度显示 1 秒数据) */
     static uint8_t draw_div = 0;
     
-    if (g_hr.result.status != HR_NO_SIGNAL && g_display_mode != OLED_MODE_LARGE_HR) {
+    if (g_hr.result.status != HR_NO_SIGNAL &&
+        g_display_mode != OLED_MODE_LARGE_HR &&
+        g_display_mode != OLED_MODE_HRV) {
         if (++draw_div >= 4) { // 每 4 个采样点绘制一次 (125Hz)
             draw_div = 0;
             OLED_DrawECGFull(filtered);

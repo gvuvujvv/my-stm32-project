@@ -53,6 +53,7 @@ typedef enum {
     OLED_MODE_FULL_WAVE = 0, // 全屏波形 (Default)
     OLED_MODE_WAVE_HR,      // 波形 + 右上角心率
     OLED_MODE_LARGE_HR,     // 大字心率显示
+    OLED_MODE_HRV,          // HRV 时域指标
     OLED_MODE_MAX
 } OLED_DisplayMode_t;
 
